@@ -1,0 +1,2 @@
+# cuboMagicoEduc
+Cubo Mágico Educacional
