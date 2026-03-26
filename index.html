@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎲 Cubo Mágico Educacional</title>
+<style>
+  :root {
+    --bg: #0f0c29;
+    --panel: #1a1740;
+    --card: #231e56;
+    --accent: #7c5cfc;
+    --accent2: #f72585;
+    --green: #4cc9f0;
+    --yellow: #ffd60a;
+    --orange: #fb5607;
+    --white: #f8f9fa;
+    --text: #e0d9ff;
+    --muted: #8a85b8;
+    --radius: 16px;
+    --shadow: 0 8px 32px rgba(124,92,252,0.25);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Partículas BG ── */
+  #particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+  /* ── Layout ── */
+  .app { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; padding: 20px 16px 40px; }
+
+  /* ── Header ── */
+  header {
+    text-align: center; margin-bottom: 24px;
+    background: linear-gradient(135deg, var(--panel), var(--card));
+    border: 1px solid rgba(124,92,252,.3);
+    border-radius: var(--radius); padding: 20px 32px;
+    box-shadow: var(--shadow); width: 100%; max-width: 900px;
+  }
+  header h1 { font-size: clamp(1.6rem,4vw,2.4rem); font-weight: 800; background: linear-gradient(90deg,#7c5cfc,#f72585,#4cc9f0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  header p { color: var(--muted); font-size: .95rem; margin-top: 4px; }
+  .stats-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+  .stat { background: rgba(124,92,252,.15); border: 1px solid rgba(124,92,252,.3); border-radius: 10px; padding: 8px 18px; font-size: .85rem; }
+  .stat span { font-weight: 700; color: var(--accent); font-size: 1.1rem; }
+
+  /* ── Main grid ── */
+  .main { display: grid; grid-template-columns: 1fr 320px; gap: 20px; width: 100%; max-width: 900px; }
+  @media(max-width:720px){ .main { grid-template-columns: 1fr; } }
+
+  /* ── Cube area ── */
+  .cube-area {
+    background: linear-gradient(135deg, var(--panel), var(--card));
+    border: 1px solid rgba(124,92,252,.3);
+    border-radius: var(--radius); padding: 24px;
+    box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; gap: 16px;
+  }
+
+  /* ── 2D net of the cube ── */
+  .cube-net { display: flex; flex-direction: column; align-items: center; gap: 2px; user-select: none; }
+  .net-row { display: flex; gap: 2px; }
+  .face-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 3px; width: 108px; height: 108px; padding: 4px;
+    border-radius: 8px; border: 2px solid rgba(255,255,255,.1); }
+  .face-grid .cell {
+    border-radius: 4px; cursor: pointer; transition: transform .1s, filter .1s;
+    border: 1px solid rgba(0,0,0,.4); box-shadow: inset 0 2px 4px rgba(255,255,255,.25), inset 0 -2px 4px rgba(0,0,0,.3);
+  }
+  .face-grid .cell:hover { transform: scale(1.08); filter: brightness(1.2); }
+  .face-grid .cell.selected { outline: 3px solid #fff; transform: scale(1.12); }
+  .spacer { width: 108px; height: 108px; }
+
+  /* ── Colors ── */
+  .c-white  { background: #f0f0f0; }
+  .c-yellow { background: #ffd60a; }
+  .c-red    { background: #e63946; }
+  .c-orange { background: #fb5607; }
+  .c-blue   { background: #4361ee; }
+  .c-green  { background: #2dc653; }
+
+  /* ── Move buttons ── */
+  .move-section { width: 100%; }
+  .move-section h3 { font-size: .85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .move-buttons { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .move-btn {
+    padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: 700;
+    font-size: .82rem; letter-spacing: .5px; transition: all .15s; min-width: 54px;
+    border: 1px solid transparent;
+  }
+  .move-btn:hover { transform: translateY(-2px); filter: brightness(1.15); }
+  .move-btn:active { transform: scale(.96); }
+  .move-btn.face-U { background:#ffd60a; color:#000; }
+  .move-btn.face-D { background:#f0f0f0; color:#000; }
+  .move-btn.face-R { background:#e63946; color:#fff; }
+  .move-btn.face-L { background:#fb5607; color:#fff; }
+  .move-btn.face-F { background:#2dc653; color:#fff; }
+  .move-btn.face-B { background:#4361ee; color:#fff; }
+  .move-btn.prime  { opacity:.75; }
+
+  /* ── Action buttons ── */
+  .action-buttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .btn {
+    padding: 10px 22px; border-radius: 10px; border: none; cursor: pointer; font-weight: 700;
+    font-size: .9rem; transition: all .15s;
+  }
+  .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+  .btn-primary { background: linear-gradient(135deg,#7c5cfc,#f72585); color: #fff; }
+  .btn-secondary { background: rgba(124,92,252,.2); color: var(--text); border: 1px solid rgba(124,92,252,.4); }
+  .btn-success { background: linear-gradient(135deg,#2dc653,#4cc9f0); color: #fff; }
+
+  /* ── Side panel ── */
+  .side-panel { display: flex; flex-direction: column; gap: 16px; }
+
+  .panel-card {
+    background: linear-gradient(135deg, var(--panel), var(--card));
+    border: 1px solid rgba(124,92,252,.3);
+    border-radius: var(--radius); padding: 18px;
+    box-shadow: var(--shadow);
+  }
+  .panel-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+
+  /* ── Learn tips ── */
+  .tip-box {
+    background: rgba(76,201,240,.1); border: 1px solid rgba(76,201,240,.3);
+    border-radius: 10px; padding: 12px; margin-bottom: 8px; font-size: .85rem; line-height: 1.5;
+  }
+  .tip-box .tip-title { font-weight: 700; color: var(--green); margin-bottom: 4px; }
+  .algo-tag { display: inline-block; background: rgba(124,92,252,.2); border: 1px solid rgba(124,92,252,.4);
+    border-radius: 6px; padding: 2px 7px; font-family: monospace; font-size: .8rem; color: var(--accent); margin: 2px; }
+
+  /* ── Move history ── */
+  .history-list { display: flex; flex-wrap: wrap; gap: 4px; max-height: 80px; overflow-y: auto; }
+  .history-tag {
+    background: rgba(124,92,252,.15); border: 1px solid rgba(124,92,252,.3);
+    border-radius: 5px; padding: 2px 8px; font-family: monospace; font-size: .78rem; color: var(--text);
+  }
+  .history-tag.last { background: rgba(247,37,133,.2); border-color: var(--accent2); }
+
+  /* ── Progress ── */
+  .progress-bar { width: 100%; height: 8px; background: rgba(255,255,255,.1); border-radius: 4px; overflow: hidden; margin: 6px 0; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg,#7c5cfc,#f72585); border-radius: 4px; transition: width .5s; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+    background: linear-gradient(135deg,#7c5cfc,#f72585); color: #fff;
+    padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 1rem;
+    box-shadow: 0 8px 32px rgba(124,92,252,.5); transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+    z-index: 100; text-align: center;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── Solved celebration ── */
+  .celebration { animation: celebrate .5s ease infinite alternate; }
+  @keyframes celebrate { from { filter: brightness(1); } to { filter: brightness(1.4) hue-rotate(20deg); } }
+
+  /* ── Quiz ── */
+  .quiz-option {
+    width: 100%; text-align: left; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(124,92,252,.3);
+    background: rgba(124,92,252,.1); color: var(--text); cursor: pointer; margin-bottom: 6px; font-size: .85rem;
+    transition: all .15s;
+  }
+  .quiz-option:hover { background: rgba(124,92,252,.25); }
+  .quiz-option.correct { background: rgba(45,198,83,.25); border-color: #2dc653; }
+  .quiz-option.wrong   { background: rgba(230,57,70,.25); border-color: #e63946; }
+
+  /* ── Difficulty ── */
+  .diff-buttons { display: flex; gap: 6px; }
+  .diff-btn { flex: 1; padding: 7px; border-radius: 8px; border: 1px solid rgba(124,92,252,.3);
+    background: transparent; color: var(--text); cursor: pointer; font-size: .8rem; transition: all .15s; }
+  .diff-btn.active { background: rgba(124,92,252,.3); border-color: var(--accent); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<div class="app">
+  <header>
+    <h1>🎲 Cubo Mágico Educacional</h1>
+    <p>Jogue, resolva e aprenda os segredos do Cubo de Rubik!</p>
+    <div class="stats-row">
+      <div class="stat">⏱ Tempo: <span id="timer">00:00</span></div>
+      <div class="stat">🔄 Movimentos: <span id="moveCount">0</span></div>
+      <div class="stat">⭐ Pontos: <span id="score">0</span></div>
+      <div class="stat">🏆 Nível: <span id="levelDisplay">1</span></div>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- Cube area -->
+    <div class="cube-area">
+      <div style="text-align:center">
+        <h2 style="font-size:1.1rem;margin-bottom:4px">🧩 Visualização do Cubo</h2>
+        <p style="font-size:.8rem;color:var(--muted)">Clique em uma peça para selecionar, depois clique em outra para trocar</p>
+      </div>
+
+      <div class="cube-net" id="cubeNet"></div>
+
+      <div class="move-section">
+        <h3>Movimentos das Faces</h3>
+        <div class="move-buttons" id="moveBtns"></div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-success" onclick="checkSolved()">✅ Verificar</button>
+        <button class="btn btn-secondary" onclick="undoMove()">↩ Desfazer</button>
+        <button class="btn btn-secondary" onclick="showHint()">💡 Dica</button>
+        <button class="btn btn-primary" onclick="scrambleCube()">🔀 Embaralhar</button>
+        <button class="btn btn-secondary" onclick="resetCube()">🔁 Reiniciar</button>
+      </div>
+
+      <div class="move-section">
+        <h3>Histórico de Movimentos</h3>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </div>
+
+    <!-- Side panel -->
+    <div class="side-panel">
+
+      <!-- Difficulty -->
+      <div class="panel-card">
+        <h3>🎯 Dificuldade</h3>
+        <div class="diff-buttons">
+          <button class="diff-btn active" onclick="setDiff(0,this)">Fácil</button>
+          <button class="diff-btn" onclick="setDiff(1,this)">Médio</button>
+          <button class="diff-btn" onclick="setDiff(2,this)">Difícil</button>
+        </div>
+        <div style="margin-top:10px;font-size:.8rem;color:var(--muted)">Progresso do nível:</div>
+        <div class="progress-bar"><div class="progress-fill" id="levelProgress" style="width:0%"></div></div>
+        <div style="font-size:.75rem;color:var(--muted)" id="levelGoalText">Meta: resolva em menos de 50 movimentos</div>
+      </div>
+
+      <!-- Aprenda -->
+      <div class="panel-card">
+        <h3>📚 Aprenda</h3>
+        <div class="tip-box">
+          <div class="tip-title">🔵 O que é o Cubo de Rubik?</div>
+          Inventado em 1974 por Ernő Rubik. Tem <strong>43 quintilhões</strong> de combinações possíveis! Apenas 1 delas é a solução.
+        </div>
+        <div class="tip-box">
+          <div class="tip-title">🟢 Notação de Movimentos</div>
+          <span class="algo-tag">U</span> Cima &nbsp; <span class="algo-tag">D</span> Baixo<br>
+          <span class="algo-tag">R</span> Direita &nbsp; <span class="algo-tag">L</span> Esquerda<br>
+          <span class="algo-tag">F</span> Frente &nbsp; <span class="algo-tag">B</span> Atrás<br>
+          <span class="algo-tag">'</span> = giro anti-horário
+        </div>
+        <div class="tip-box" id="learnTip">
+          <div class="tip-title">💡 Algoritmo Básico</div>
+          Para resolver a cruz branca: <span class="algo-tag">F R U R' U' F'</span>
+        </div>
+      </div>
+
+      <!-- Quiz -->
+      <div class="panel-card">
+        <h3>🧠 Quiz Educativo</h3>
+        <div id="quizArea"></div>
+      </div>
+
+      <!-- Conquistas -->
+      <div class="panel-card">
+        <h3>🏅 Conquistas</h3>
+        <div id="achievements" style="display:flex;flex-direction:column;gap:6px;font-size:.82rem;"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast">🎉 Parabéns!</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// PARTICLE BACKGROUND
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+let W, H, particles = [];
+function resizeCanvas(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resizeCanvas(); window.addEventListener('resize', resizeCanvas);
+for(let i=0;i<60;i++) particles.push({
+  x: Math.random()*2000, y: Math.random()*1000,
+  r: Math.random()*2+.5, dx: (Math.random()-.5)*.3, dy: (Math.random()-.5)*.3,
+  a: Math.random()
+});
+function animateParticles(){
+  ctx.clearRect(0,0,W,H);
+  particles.forEach(p=>{
+    p.x+=p.dx; p.y+=p.dy;
+    if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+    if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(124,92,252,${p.a*0.6})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(animateParticles);
+}
+animateParticles();
+
+// ═══════════════════════════════════════════════════════
+// CUBE STATE
+// ═══════════════════════════════════════════════════════
+// Faces: U(top/yellow), D(bottom/white), F(front/green), B(back/blue), R(right/red), L(left/orange)
+// Each face is a 9-cell array, row-major
+const FACE_COLORS = { U:'c-yellow', D:'c-white', F:'c-green', B:'c-blue', R:'c-red', L:'c-orange' };
+const FACE_LABELS = { U:'Cima (U)', D:'Baixo (D)', F:'Frente (F)', B:'Atrás (B)', R:'Direita (R)', L:'Esquerda (L)' };
+
+let cube = {};
+let history = [];
+let moveCount = 0;
+let score = 0;
+let level = 1;
+let levelXP = 0;
+let timerInterval = null;
+let seconds = 0;
+let selectedCell = null;
+let difficulty = 0; // 0=easy,1=medium,2=hard
+let diffGoals = [50,30,15];
+let achievementSet = new Set();
+
+function initCube(){
+  ['U','D','F','B','R','L'].forEach(f=>{
+    cube[f] = Array(9).fill(f);
+  });
+}
+
+function cloneCube(c){ let n={}; Object.keys(c).forEach(k=>n[k]=[...c[k]]); return n; }
+
+// ── Rotation primitives ──
+function rotateFaceCW(f){
+  let s=cube[f]; cube[f]=[s[6],s[3],s[0],s[7],s[4],s[1],s[8],s[5],s[2]];
+}
+function rotateFaceCCW(f){
+  let s=cube[f]; cube[f]=[s[2],s[5],s[8],s[1],s[4],s[7],s[0],s[3],s[6]];
+}
+
+// ── All 12 quarter-turn moves ──
+const MOVES = {
+  U(){ rotateFaceCW('U'); let[F,R,B,L]=[cube.F,cube.R,cube.B,cube.L]; let t=[F[0],F[1],F[2]]; cube.F[0]=R[0];cube.F[1]=R[1];cube.F[2]=R[2]; cube.R[0]=B[0];cube.R[1]=B[1];cube.R[2]=B[2]; cube.B[0]=L[0];cube.B[1]=L[1];cube.B[2]=L[2]; cube.L[0]=t[0];cube.L[1]=t[1];cube.L[2]=t[2]; },
+  "U'"(){ for(let i=0;i<3;i++) MOVES.U(); },
+  D(){ rotateFaceCW('D'); let[F,R,B,L]=[cube.F,cube.R,cube.B,cube.L]; let t=[F[6],F[7],F[8]]; cube.F[6]=L[6];cube.F[7]=L[7];cube.F[8]=L[8]; cube.L[6]=B[6];cube.L[7]=B[7];cube.L[8]=B[8]; cube.B[6]=R[6];cube.B[7]=R[7];cube.B[8]=R[8]; cube.R[6]=t[0];cube.R[7]=t[1];cube.R[8]=t[2]; },
+  "D'"(){ for(let i=0;i<3;i++) MOVES.D(); },
+  R(){ rotateFaceCW('R'); let[F,U,B,D]=[cube.F,cube.U,cube.B,cube.D]; let t=[F[2],F[5],F[8]]; cube.F[2]=D[2];cube.F[5]=D[5];cube.F[8]=D[8]; cube.D[2]=B[6];cube.D[5]=B[3];cube.D[8]=B[0]; cube.B[0]=U[8];cube.B[3]=U[5];cube.B[6]=U[2]; cube.U[2]=t[0];cube.U[5]=t[1];cube.U[8]=t[2]; },
+  "R'"(){ for(let i=0;i<3;i++) MOVES.R(); },
+  L(){ rotateFaceCW('L'); let[F,U,B,D]=[cube.F,cube.U,cube.B,cube.D]; let t=[F[0],F[3],F[6]]; cube.F[0]=U[0];cube.F[3]=U[3];cube.F[6]=U[6]; cube.U[0]=B[8];cube.U[3]=B[5];cube.U[6]=B[2]; cube.B[2]=D[6];cube.B[5]=D[3];cube.B[8]=D[0]; cube.D[0]=t[0];cube.D[3]=t[1];cube.D[6]=t[2]; },
+  "L'"(){ for(let i=0;i<3;i++) MOVES.L(); },
+  F(){ rotateFaceCW('F'); let[U,R,D,L]=[cube.U,cube.R,cube.D,cube.L]; let t=[U[6],U[7],U[8]]; cube.U[6]=L[8];cube.U[7]=L[5];cube.U[8]=L[2]; cube.L[2]=D[0];cube.L[5]=D[1];cube.L[8]=D[2]; cube.D[0]=R[0];cube.D[1]=R[3];cube.D[2]=R[6]; cube.R[0]=t[2];cube.R[3]=t[1];cube.R[6]=t[0]; },
+  "F'"(){ for(let i=0;i<3;i++) MOVES.F(); },
+  B(){ rotateFaceCW('B'); let[U,R,D,L]=[cube.U,cube.R,cube.D,cube.L]; let t=[U[0],U[1],U[2]]; cube.U[0]=R[2];cube.U[1]=R[5];cube.U[2]=R[8]; cube.R[2]=D[8];cube.R[5]=D[7];cube.R[8]=D[6]; cube.D[6]=L[0];cube.D[7]=L[3];cube.D[8]=L[6]; cube.L[0]=t[2];cube.L[3]=t[1];cube.L[6]=t[0]; },
+  "B'"(){ for(let i=0;i<3;i++) MOVES.B(); },
+};
+
+function applyMove(m, addHistory=true){
+  let prev = cloneCube(cube);
+  MOVES[m]();
+  if(addHistory){ history.push({move:m, prev}); moveCount++; updateMoveCount(); }
+  renderCube();
+  addToHistoryUI(m);
+}
+
+// ── Scramble ──
+function scrambleCube(){
+  resetTimer();
+  let moves = Object.keys(MOVES);
+  let n = [5,10,18][difficulty];
+  initCube();
+  history = []; moveCount = 0; updateMoveCount();
+  document.getElementById('historyList').innerHTML='';
+  for(let i=0;i<n;i++) applyMove(moves[Math.floor(Math.random()*moves.length)], false);
+  history=[]; // clear so undo doesn't go back to solved
+  startTimer();
+  showToast('🔀 Cubo embaralhado! Vamos lá!');
+  renderCube();
+}
+
+function resetCube(){
+  stopTimer(); resetTimer();
+  initCube(); history=[]; moveCount=0; updateMoveCount();
+  document.getElementById('historyList').innerHTML='';
+  renderCube();
+}
+
+function undoMove(){
+  if(history.length===0){ showToast('Sem movimentos para desfazer!'); return; }
+  let last = history.pop();
+  cube = last.prev;
+  moveCount = Math.max(0,moveCount-1); updateMoveCount();
+  let list = document.getElementById('historyList');
+  if(list.lastChild) list.removeChild(list.lastChild);
+  renderCube();
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER CUBE NET
+// ═══════════════════════════════════════════════════════
+//  Layout:
+//       [U]
+//  [L] [F] [R] [B]
+//       [D]
+function renderCube(){
+  const net = document.getElementById('cubeNet');
+  net.innerHTML='';
+  const row1 = mkRow(['spacer','U','spacer','spacer']);
+  const row2 = mkRow(['L','F','R','B']);
+  const row3 = mkRow(['spacer','D','spacer','spacer']);
+  net.appendChild(row1); net.appendChild(row2); net.appendChild(row3);
+}
+
+function mkRow(faces){
+  const row = document.createElement('div'); row.className='net-row';
+  faces.forEach(f=>{
+    if(f==='spacer'){ const s=document.createElement('div'); s.className='spacer'; row.appendChild(s); }
+    else row.appendChild(mkFace(f));
+  });
+  return row;
+}
+
+function mkFace(f){
+  const grid = document.createElement('div');
+  grid.className='face-grid';
+  grid.style.background='rgba(255,255,255,.05)';
+  cube[f].forEach((cellFace,i)=>{
+    const cell = document.createElement('div');
+    cell.className='cell '+FACE_COLORS[cellFace];
+    cell.dataset.face=f; cell.dataset.idx=i;
+    cell.title = `${FACE_LABELS[f]} – peça ${i+1}`;
+    cell.addEventListener('click',()=>onCellClick(f,i,cell));
+    if(selectedCell && selectedCell.face===f && selectedCell.idx===i) cell.classList.add('selected');
+    grid.appendChild(cell);
+  });
+  return grid;
+}
+
+function onCellClick(f,i,el){
+  if(!selectedCell){ selectedCell={face:f,idx:i}; renderCube(); return; }
+  if(selectedCell.face===f && selectedCell.idx===i){ selectedCell=null; renderCube(); return; }
+  // Swap cells (for learning/exploration)
+  let tmp=cube[selectedCell.face][selectedCell.idx];
+  cube[selectedCell.face][selectedCell.idx]=cube[f][i];
+  cube[f][i]=tmp;
+  selectedCell=null; renderCube();
+}
+
+// ═══════════════════════════════════════════════════════
+// MOVE BUTTONS
+// ═══════════════════════════════════════════════════════
+function buildMoveButtons(){
+  const container = document.getElementById('moveBtns');
+  const faceMap = {U:'face-U',D:'face-D',R:'face-R',L:'face-L',F:'face-F',B:'face-B'};
+  Object.keys(MOVES).forEach(m=>{
+    const btn = document.createElement('button');
+    const base = m.replace("'",'');
+    btn.className='move-btn face-'+base+(m.includes("'")?' prime':'');
+    btn.textContent=m;
+    btn.title=`Mover face ${base}${m.includes("'")?' (anti-horário)':'(horário)'}`;
+    btn.addEventListener('click',()=>{ applyMove(m); scoreMove(); });
+    container.appendChild(btn);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// HISTORY UI
+// ═══════════════════════════════════════════════════════
+function addToHistoryUI(m){
+  const list=document.getElementById('historyList');
+  // clear last tag's "last" class
+  if(list.lastChild) list.lastChild.classList.remove('last');
+  const tag=document.createElement('span'); tag.className='history-tag last'; tag.textContent=m;
+  list.appendChild(tag);
+  list.scrollLeft=list.scrollWidth;
+}
+
+// ═══════════════════════════════════════════════════════
+// CHECK SOLVED
+// ═══════════════════════════════════════════════════════
+function isSolved(){
+  return Object.keys(cube).every(f=>cube[f].every(c=>c===f));
+}
+
+function checkSolved(){
+  if(isSolved()){
+    stopTimer();
+    addScore(100);
+    gainXP(40);
+    checkAchievement('first_solve','🌟 Primeira Solução!','Resolveu o cubo pela primeira vez');
+    if(moveCount<=diffGoals[difficulty]) checkAchievement('efficient','⚡ Eficiência Máxima!','Resolveu dentro da meta de movimentos');
+    if(seconds<30) checkAchievement('speedster','🚀 Speedcuber!','Resolveu em menos de 30 segundos');
+    showToast('🏆 PARABÉNS! Cubo resolvido! +100 pontos');
+    document.getElementById('cubeNet').classList.add('celebration');
+    setTimeout(()=>document.getElementById('cubeNet').classList.remove('celebration'),3000);
+  } else {
+    let correct=0, total=0;
+    Object.keys(cube).forEach(f=>{ cube[f].forEach(c=>{ total++; if(c===f) correct++; }); });
+    let pct=Math.round(correct/total*100);
+    showToast(`🔍 ${pct}% correto – Continue tentando!`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// HINT SYSTEM
+// ═══════════════════════════════════════════════════════
+const hints = [
+  { title:'Cruz Branca (D)', text:'Encontre as peças brancas com arestas coloridas e alinhe-as na face de baixo formando uma cruz. Algoritmo: <span class="algo-tag">F R U R\' U\' F\'</span>' },
+  { title:'Cantos da Base', text:'Coloque os cantos brancos no lugar correto. Algoritmo: <span class="algo-tag">R U R\' U\'</span> (repita até encaixar)' },
+  { title:'Segunda Camada', text:'Para inserir arestas na camada do meio: <span class="algo-tag">U R U\' R\' U\' F\' U F</span>' },
+  { title:'Cruz Amarela', text:'Para fazer a cruz amarela no topo: <span class="algo-tag">F R U R\' U\' F\'</span>' },
+  { title:'Permutação Final', text:'Para girar os cantos do topo: <span class="algo-tag">R U R\' U R U2 R\'</span>' },
+];
+let hintIdx=0;
+function showHint(){
+  let h=hints[hintIdx%hints.length]; hintIdx++;
+  document.getElementById('learnTip').innerHTML=`<div class="tip-title">💡 ${h.title}</div>${h.text}`;
+  showToast('💡 Dica atualizada no painel!');
+  addScore(0); gainXP(5);
+}
+
+// ═══════════════════════════════════════════════════════
+// TIMER
+// ═══════════════════════════════════════════════════════
+function startTimer(){
+  if(timerInterval) return;
+  timerInterval = setInterval(()=>{ seconds++; updateTimerDisplay(); },1000);
+}
+function stopTimer(){ clearInterval(timerInterval); timerInterval=null; }
+function resetTimer(){ stopTimer(); seconds=0; updateTimerDisplay(); }
+function updateTimerDisplay(){
+  let m=String(Math.floor(seconds/60)).padStart(2,'0');
+  let s=String(seconds%60).padStart(2,'0');
+  document.getElementById('timer').textContent=`${m}:${s}`;
+}
+
+// ═══════════════════════════════════════════════════════
+// SCORING & LEVELING
+// ═══════════════════════════════════════════════════════
+function updateMoveCount(){ document.getElementById('moveCount').textContent=moveCount; }
+function addScore(n){ score+=n; document.getElementById('score').textContent=score; }
+function scoreMove(){ if(moveCount%10===0&&moveCount>0){ addScore(5); gainXP(2); } }
+
+function gainXP(n){
+  levelXP+=n;
+  let needed=[100,200,400][difficulty]||100;
+  if(levelXP>=needed){ levelXP=0; level++; document.getElementById('levelDisplay').textContent=level; showToast('🆙 Level UP! Nível '+level); }
+  let pct=Math.min(100,Math.round(levelXP/([100,200,400][difficulty]||100)*100));
+  document.getElementById('levelProgress').style.width=pct+'%';
+}
+
+function setDiff(d,btn){
+  difficulty=d;
+  document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  let goals=['Resolva em menos de 50 movimentos','Resolva em menos de 30 movimentos','Resolva em menos de 15 movimentos'];
+  document.getElementById('levelGoalText').textContent='Meta: '+goals[d];
+}
+
+// ═══════════════════════════════════════════════════════
+// QUIZ
+// ═══════════════════════════════════════════════════════
+const quizzes = [
+  { q:'Quantas faces tem um Cubo de Rubik?', opts:['4','6','8','12'], a:1 },
+  { q:'Quem inventou o Cubo de Rubik?', opts:['Nikola Tesla','Alan Turing','Ernő Rubik','Ernst Mach'], a:2 },
+  { q:'Quantas combinações possíveis existem?', opts:['1 milhão','1 bilhão','43 quintilhões','infinitas'], a:2 },
+  { q:'O que significa "R\'" na notação?', opts:['Face direita horária','Face esquerda horária','Face direita anti-horária','Face de baixo'], a:2 },
+  { q:'Em que ano o cubo foi inventado?', opts:['1960','1974','1982','1990'], a:1 },
+  { q:'Qual é a notação para girar a face de cima?', opts:['D','U','F','B'], a:1 },
+  { q:'Quantas peças de canto existem?', opts:['4','6','8','12'], a:2 },
+  { q:'Quantas peças de aresta existem?', opts:['8','10','12','14'], a:2 },
+];
+let currentQuiz = -1;
+
+function nextQuiz(){
+  currentQuiz=(currentQuiz+1)%quizzes.length;
+  let q=quizzes[currentQuiz];
+  let html=`<p style="font-size:.85rem;margin-bottom:10px;font-weight:600">${q.q}</p>`;
+  q.opts.forEach((o,i)=>{
+    html+=`<button class="quiz-option" onclick="answerQuiz(${i},${q.a},this)">${String.fromCharCode(65+i)}) ${o}</button>`;
+  });
+  html+=`<button class="btn btn-secondary" style="width:100%;margin-top:6px;padding:6px;font-size:.8rem" onclick="nextQuiz()">Próxima pergunta ▶</button>`;
+  document.getElementById('quizArea').innerHTML=html;
+}
+
+function answerQuiz(chosen,correct,btn){
+  document.querySelectorAll('.quiz-option').forEach(b=>b.disabled=true);
+  if(chosen===correct){
+    btn.classList.add('correct');
+    showToast('✅ Correto! +20 pontos');
+    addScore(20); gainXP(10);
+    checkAchievement('quiz_master','🧠 Mestre do Quiz!','Acertou uma pergunta');
+  } else {
+    btn.classList.add('wrong');
+    document.querySelectorAll('.quiz-option')[correct].classList.add('correct');
+    showToast('❌ Errou! Estude mais um pouco.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// ACHIEVEMENTS
+// ═══════════════════════════════════════════════════════
+const allAchievements = [
+  {id:'first_solve', icon:'🌟', title:'Primeira Solução!', desc:'Resolveu o cubo pela primeira vez'},
+  {id:'efficient',   icon:'⚡', title:'Eficiência Máxima!', desc:'Resolveu dentro da meta'},
+  {id:'speedster',   icon:'🚀', title:'Speedcuber!', desc:'Resolveu em menos de 30s'},
+  {id:'quiz_master', icon:'🧠', title:'Mestre do Quiz!', desc:'Acertou uma pergunta'},
+  {id:'mover100',    icon:'💪', title:'100 Movimentos!', desc:'Fez 100 movimentos'},
+];
+
+function checkAchievement(id){
+  if(achievementSet.has(id)) return;
+  achievementSet.add(id);
+  renderAchievements();
+}
+
+function renderAchievements(){
+  const container=document.getElementById('achievements');
+  container.innerHTML='';
+  allAchievements.forEach(a=>{
+    const earned=achievementSet.has(a.id);
+    const div=document.createElement('div');
+    div.style.cssText=`display:flex;gap:8px;align-items:center;opacity:${earned?1:0.3};transition:.3s`;
+    div.innerHTML=`<span style="font-size:1.2rem">${a.icon}</span><div><div style="font-weight:700;font-size:.8rem">${a.title}</div><div style="font-size:.7rem;color:var(--muted)">${a.desc}</div></div>`;
+    container.appendChild(div);
+  });
+}
+
+// Watch for 100 moves achievement
+const _applyMove = applyMove;
+
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+let toastTimer=null;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+initCube();
+renderCube();
+buildMoveButtons();
+nextQuiz();
+renderAchievements();
+
+// Check achievements on move
+document.getElementById('moveBtns').addEventListener('click',()=>{
+  if(moveCount>=100) checkAchievement('mover100');
+});
+</script>
+</body>
+</html>
